@@ -8,16 +8,6 @@ import pickle
 with open('churn_model.pkl', 'rb') as trained_model_dump:
     clf_infer = pickle.load(trained_model_dump)
 
-# read the X test data and previously predicted targets
-X_test_infer = pd.read_csv('X_test.csv')
-y_pred = np.loadtxt('preds.csv', delimiter=",")
-
-# predict the target on X_test data
-y_pred_infer = clf_infer.predict(X_test_infer)
-
-# check if the training prediction is same as the inference prediction
-print(f"The predicted on inference machine is same as predicted on training machine: {(y_pred == y_pred_infer).all()}")
-
 
 # set Flask model and parameters
 app = Flask(__name__)
@@ -44,4 +34,5 @@ def predict_churn():
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(port=8080)
+
