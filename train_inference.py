@@ -15,15 +15,19 @@ from firebase_admin import credentials, firestore
 from flask import Flask
 from flask import request
 
+df = pd.read_csv('Fire Station Database.csv')
+df_values = df.iloc[:,8:].fillna(0).to_numpy()
+X = df_values
+mixture, post = common.init(X,4)
+post, cost = em.estep(X, mixture)
+mixture = em.mstep(X, post, mixture)
+mixture, post, cost = em.run(X, mixture, post)
+X = em.fill_matrix(X, mixture)
+X = StandardScaler().fit_transform(X)
+
 def predict():
     final_dict = dict()
     for num in range(3, 7):
-        mixture, post = common.init(X,4)
-        post, cost = em.estep(X, mixture)
-        mixture = em.mstep(X, post, mixture)
-        mixture, post, cost = em.run(X, mixture, post)
-        X = em.fill_matrix(X, mixture)
-        X = StandardScaler().fit_transform(X)
         kmeans = KMeans(n_clusters=num, random_state=0).fit(X)
         labels = kmeans.labels_
         result_dict = dict()
