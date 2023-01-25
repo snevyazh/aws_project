@@ -1,12 +1,16 @@
 import pandas as pd
 import numpy as np
 
-
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 # import pickle
 import common
 import em
+
+import firebase_admin
+from firebase_admin import db
+import json
+from firebase_admin import credentials, firestore
 
 from flask import Flask
 from flask import request
@@ -42,8 +46,19 @@ df_result = pd.DataFrame()
 df_result['color'] = labels
 df_result.reset_index(inplace=True)
 df_result.rename(columns={'index': 'employeeId'}, inplace=True)
-
+df_result['employeeId'] = df_result['employeeId'] +1000
 df_result.to_json('result.json', orient='records')
+
+### This is FireBase part
+
+cd = credentials.Certificate("tmapper-a0c5d-firebase-adminsdk-uqyci-457e89c20c.json")
+firebase_admin.initialize_app(cd)
+
+ref = db.reference(path='/', url="https://tmapper-a0c5d-default-rtdb.europe-west1.firebasedatabase.app/")
+with open("result.json", "r") as file:
+	file_contents = json.load(file)
+ref.set(file_contents)
+
 
 
 # set Flask model and parameters
