@@ -1,76 +1,73 @@
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+# import pickle
+import common
+import em
+
 from flask import Flask
 from flask import request
-import pickle
 
+df = pd.read_csv('Fire Station Database.csv')
+df_values = df.iloc[:,8:].fillna(0).to_numpy()
+X = df_values
 
-from flask import Flask
-from flask import request
+mixture, post = common.init(X,4)
 
-df = pd.read_csv('cellular_churn_greece.csv')
+post, cost = em.estep(X, mixture)
 
-TARGET = 'churned'
-INDEP_FEAT = ['years_in_contract', 'age', 'num_inters', 'is_male', 'late_on_payment']
+mixture = em.mstep(X, post, mixture)
 
-X = df[INDEP_FEAT]
-y = df[TARGET]
+mixture, post, cost = em.run(X, mixture, post)
 
-# split sets with 80-20 ratio
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=99)
+X = em.fill_matrix(X, mixture)
 
+X = StandardScaler().fit_transform(X)
 
-# model training and prediction
-clf = RandomForestClassifier(random_state=99)
-clf.fit(X_train, y_train)
-y_pred = clf.predict(X_test)
+kmeans = KMeans(n_clusters=3, random_state=0).fit(X)
 
-print(f"Accuracy is  {clf.score(X_test, y_test)}")
-
-
-#save X test and y predicted to files
-X_test.to_csv('X_test.csv', index=False)
-np.savetxt('preds.csv', y_pred, delimiter = ",")
-
-# dump model with pickle and write to file
-with open('churn_model.pkl', 'wb') as model_dump:
-    pickle.dump(clf, model_dump)
 
 
 ### training part end here
 
 ### inference part starts here
 
-# open pickle of the model
-with open('churn_model.pkl', 'rb') as trained_model_dump:
-    clf_infer = pickle.load(trained_model_dump)
+labels = kmeans.labels_
+print(labels)
+
+df_result = pd.DataFrame()
+df_result['color'] = labels
+df_result.reset_index(inplace=True)
+df_result.rename(columns={'index': 'employeeId'}, inplace=True)
+
+df_result.to_json('result.json', orient='records')
 
 
 # set Flask model and parameters
-app = Flask(__name__)
+# app = Flask(__name__)
+
+# @app.route('/predict_churn')
+# def predict_churn():
+#     years_in_contract = float(request.args.get('years_in_contract'))
+#     age = int(request.args.get('age'))
+#     num_inters = int(request.args.get('num_inters'))
+#     is_male = int(request.args.get('is_male'))
+#     late_on_payment = int(request.args.get('late_on_payment'))
+#
+#     a = {0: 'years_in_contract', 4: 'late_on_payment', 2: 'num_inters', 3: 'is_male',   1: 'age'}
+#     X_temp = pd.DataFrame([years_in_contract, age, num_inters, is_male, late_on_payment]).T.rename(columns=a)
+#     print(X_temp)
+#     y_temp = clf_infer.predict(X_temp)
+#     print(y_temp[0])
+#     return str(y_temp[0])
 
 
-@app.route('/predict_churn')
-def predict_churn():
-    years_in_contract = float(request.args.get('years_in_contract'))
-    age = int(request.args.get('age'))
-    num_inters = int(request.args.get('num_inters'))
-    is_male = int(request.args.get('is_male'))
-    late_on_payment = int(request.args.get('late_on_payment'))
-
-    a = {0: 'years_in_contract', 4: 'late_on_payment', 2: 'num_inters', 3: 'is_male',   1: 'age'}
-    X_temp = pd.DataFrame([years_in_contract, age, num_inters, is_male, late_on_payment]).T.rename(columns=a)
-    print(X_temp)
-    y_temp = clf_infer.predict(X_temp)
-    print(y_temp[0])
-    return str(y_temp[0])
 
 
-
-
-if __name__ == '__main__':
-    app.run(port=5000)  # for local
-    # app.run(host='0.0.0.0', port=8080)  # for AWS
+# if __name__ == '__main__':
+#     app.run(port=5000)  # for local
+#     # app.run(host='0.0.0.0', port=8080)  # for AWS
 
